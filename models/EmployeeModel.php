@@ -2,15 +2,32 @@
 require_once 'db.php'; // Database connection
 
 class EmployeeModel {
-    public function getAllEmployees() {
+    // public function getAllEmployees() {
+    //     global $pdo;
+        
+    //     // Query to fetch all employees from the database
+    //     $stmt = $pdo->prepare("SELECT * FROM employees");
+    //     $stmt->execute();
+        
+    //     // Return the result as an associative array
+    //     return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // }
+
+      // Fetch employees with pagination
+    public function getEmployees($limit, $offset) {
         global $pdo;
-        
-        // Query to fetch all employees from the database
-        $stmt = $pdo->prepare("SELECT * FROM employees");
+        $stmt = $pdo->prepare("SELECT * FROM employees LIMIT :limit OFFSET :offset");
+        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
-        
-        // Return the result as an associative array
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Get the total number of employees for pagination
+    public function getTotalEmployees() {
+        global $pdo;
+        $stmt = $pdo->query("SELECT COUNT(*) FROM employees");
+        return $stmt->fetchColumn();
     }
 
         // Add a new employee

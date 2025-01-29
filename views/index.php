@@ -22,6 +22,36 @@
             font-size: 2em;
             margin-bottom: 30px;
         }
+        
+        /* Table and Controls Layout */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0px;
+            /* margin-top: 15px; */
+
+        }
+
+        .controls .search-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .controls  .search-container input, .controls .search-container select {
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        .show-container{
+            padding: 10px;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+
+        }
 
         /* / Button Styles / */
         .button {
@@ -49,7 +79,7 @@
         /* / Table Styles / */
         table {
             width: 100%;
-            margin: 20px 0;
+            margin: 5px 0;
             border-collapse: collapse;
             border-radius: 8px;
             overflow: hidden;
@@ -70,6 +100,30 @@
         }
         tr:hover {
             background-color: #f1f1f1;
+        }
+
+           /* Pagination */
+           .pagination {
+            text-align: right;
+            margin-top: 20px;
+        }
+
+        .pagination button {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            margin: 0 5px;
+            font-size: 14px;
+        }
+
+        .pagination button:hover {
+            background-color: #f0f0f0;
+        }
+
+        .pagination .disabled {
+            background-color: #ddd;
+            cursor: not-allowed;
         }
 
         /* / Button for "Add Employee" - Position it to top-right / */
@@ -208,6 +262,9 @@
         .popup-footer button {
             width: 48%;
         }
+        .error{
+            font: 2px;
+        }
     </style>
 
 </head>
@@ -223,6 +280,26 @@
 
 
 <button id="addEmployeeBtn" class="button">Add Employee ➕</button>
+
+<!-- Controls Section (Search & Show Options) -->
+<div class="controls">
+    <!-- Show Option on the left side -->
+    <div class="show-container">
+    <label for="recordsPerPage">Show:</label>
+        <select id="recordsPerPage" onchange="renderEmployees()">
+        <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="30">30</option>
+            <option value="all">All</option>
+        </select>
+    </div>
+
+    <!-- Search Option on the right side -->
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search by name, email, salary, position">
+    </div>
+</div>
 <!-- Table to display employees -->
 <table id="employeeTable">
     <thead>
@@ -237,9 +314,17 @@
             <th>Actions</th>
         </tr>
     </thead>
-    <tbody></tbody>
+    <tbody>
+        
+    </tbody>
 </table>
 
+<!-- Pagination -->
+
+<!-- Pagination Controls -->
+<!-- Pagination Controls -->
+<div id="pagination"></div>
+<!-- <div class="pagination" id="pagination"></div> -->
 
 <!-- Add/Edit Employee Popup -->
 <div class="popup" id="employeePopup">
@@ -247,22 +332,33 @@
         <span class="close-popup" id="closePopupBtn">×</span>
         <h3 id="popupTitle">Add Employee➕</h3>
         <input type="hidden" id="employeeId" />
+
+        <!-- Employee Name -->
         <input type="text" id="name" placeholder="Employee Name" required>
+        <div id="nameError" class="error" style="color: red; display: none;">Name is required.</div>
+
+        <!-- Email -->
         <input type="email" id="email" placeholder="Email" required>
+        <div id="emailError" class="error" style="color: red; display: none;">Please enter a valid email address.</div>
+
+        <!-- Password -->
         <input type="password" id="password" placeholder="Password" required>
-        <!-- <input type="text" id="position" placeholder="Position" required> -->
+        <div id="passwordError" class="error" style="color: red; display: none;">Password must be at least 8 characters long and include letters, numbers, and symbols.</div>
+
+        <!-- Position -->
         <select id="position" required>
-    <option value="">Select Position</option>
-    <option value="Manager">Manager</option>
-    <option value="Developer">Developer</option>
-    <option value="Designer">Designer</option>
-    <option value="HR">HR</option>
-    <option value="Sales">Sales</option>
-</select>
+            <option value="">Select Position</option>
+            <option value="Manager">Manager</option>
+            <option value="Developer">Developer</option>
+            <option value="Designer">Designer</option>
+            <option value="HR">HR</option>
+            <option value="Sales">Sales</option>
+        </select>
+        <div id="positionError" class="error" style="color: red; display: none;">Position is required.</div>
 
-
+        <!-- Salary -->
         <input type="number" id="salary" placeholder="Salary" required>
-       
+        <div id="salaryError" class="error" style="color: red; display: none;">Salary is required.</div>
 
         <div class="popup-footer">
             <button id="saveBtn">Save</button>
@@ -270,6 +366,7 @@
         </div>
     </div>
 </div>
+
 
 <!-- Delete Confirmation Popup -->
 <div id="deleteConfirmPopup">
@@ -286,256 +383,90 @@
 <div id="successMessage">Record Deleted</div>
 
 <script>
-    const employeeTable = document.getElementById('employeeTable').getElementsByTagName('tbody')[0];
-    const addEmployeeBtn = document.getElementById('addEmployeeBtn');
-    const employeePopup = document.getElementById('employeePopup');
-    const closePopupBtn = document.getElementById('closePopupBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    const closePopup = document.getElementById('closePopup');
-    const deleteConfirmPopup = document.getElementById('deleteConfirmPopup');
-    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-    const successMessage = document.getElementById('successMessage');
-    const messageBox = document.getElementById('messageBox');
 
-    let currentEditEmployee = null;
+    // DOM Elements
+const employeeTable = document.getElementById('employeeTable');
+const paginationContainer = document.getElementById('pagination');
+const searchInput = document.getElementById('searchInput');
+const recordsPerPage = document.getElementById('recordsPerPage');
+let currentPage = 1;
+let totalEmployees = [];
+let totalPages = 0;
 
-    // Fetch all employees from the server
-    function renderEmployees() {
-        fetch('../controllers/EmployeeController.php?endpoint=employees', { method: 'GET' })
-            .then(response => response.json())
-            .then(employees => {
-                employeeTable.innerHTML = '';
-                employees.forEach((employee, index)=> {
-                    const row = employeeTable.insertRow();
-                    row.innerHTML = `
-                        <td>${index+1}</td>
-                        <td>${employee.name}</td>
-                        <td>${employee.position}</td>
-                        <td>${employee.created_at}</td>
-                        <td>${employee.updated_at}</td>
-                        <td>
-                            <button class="editBtn button" data-id="${employee.id}">Edit ✏️</button>
-                            <button class="deleteBtn button button-danger" data-id="${employee.id}">Delete 🗑️</button>
-                        </td>
-                    `;
-                });
+function renderEmployees() {
+    // Fetch employees data from the API
+    const searchQuery = searchInput.value.toLowerCase();
+    const recordsToShow = parseInt(recordsPerPage.value);
 
-                // Add event listeners for edit and delete buttons
-                document.querySelectorAll('.editBtn').forEach(btn => {
-                    btn.addEventListener('click', editEmployee);
-                });
-                document.querySelectorAll('.deleteBtn').forEach(btn => {
-                    btn.addEventListener('click', deleteEmployee);
-                });
-            });
-    }
+    // Make the API call
+    fetch(`../controllers/EmployeeController.php?endpoint=employees&page=${currentPage}&recordsPerPage=${recordsToShow}`, {
+        method: 'GET'
+    })
+    .then(response => response.json())
+    .then(data => {
+        totalEmployees = data.employees;
+        totalPages = data.totalPages;
 
-    // Open the popup to add or edit an employee
-    function openEmployeePopup(employee = null) {
-        if (employee) {
-            document.getElementById('popupTitle').innerText = 'Edit Employee';
-            document.getElementById('employeeId').value = employee.id;
-            document.getElementById('name').value = employee.name;
-            document.getElementById('email').value = employee.email;
-            document.getElementById('password').value = employee.password;
-            document.getElementById('position').value = employee.position;
-            document.getElementById('salary').value = employee.salary;
-            currentEditEmployee = employee;
-        } else {
-            document.getElementById('popupTitle').innerText = 'Add Employee';
-            document.getElementById('employeeId').value = '';
-            document.getElementById('name').value = '';
-            document.getElementById('email').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('position').value = '';
-            document.getElementById('salary').value = '';
-           
-            currentEditEmployee = null;
-        }
-        employeePopup.style.display = 'flex';
-    }
+        // Filter employees based on search query
+        const filteredEmployees = totalEmployees.filter(employee =>
+            employee.name.toLowerCase().includes(searchQuery) ||
+            employee.email.toLowerCase().includes(searchQuery) ||
+            employee.position.toLowerCase().includes(searchQuery)
+        );
 
-// Using ajax Save the employee (add or update)
-function saveEmployee() {
-    const name = document.getElementById('name').value;
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const position = document.getElementById('position').value;
-    const salary = document.getElementById('salary').value;
-   
-    const id = document.getElementById('employeeId').value;
+        // Clear the table before rendering new data
+        employeeTable.innerHTML = '';
 
-    // Check if the fields are empty
-    if (!name || !email || !password || !position || !salary) {
-        alert("All fields are required!");
-        return;
-    }
+        // Render employee rows
+        filteredEmployees.forEach((employee, index) => {
+            const row = employeeTable.insertRow();
+            row.innerHTML = `
+                <td>${(currentPage - 1) * recordsToShow + index + 1}</td>
+                <td>${employee.name}</td>
+                <td>${employee.email}</td>
+                <td>${employee.position}</td>
+                <td>${employee.salary}</td>
+                <td>${employee.created_at}</td>
+                <td>${employee.updated_at}</td>
+                
+                <td>
+                    <button class="editBtn" data-id="${employee.id}">Edit ✏️</button>
+                    <button class="deleteBtn" data-id="${employee.id}">Delete 🗑️</button>
+                </td>
+            `;
+        });
 
-    // Define the request method (POST for add, PUT for update)
-    const method = currentEditEmployee ? 'PUT' : 'POST';
-    const url = '../controllers/EmployeeController.php?endpoint=employees';
-    
-    // Prepare the data object
-    const data = { name, email, password, position, salary };
-    if (currentEditEmployee) {
-        data.id = id;  // Include the id for updating
-    }
-
-    // Send AJAX request
-    $.ajax({
-        url: url,
-        type: method,
-        contentType: 'application/json',
-        data: JSON.stringify(data), // Convert the data object to JSON string
-        success: function(response) {
-            if (response.status === 'success') {
-                renderEmployees();  // Refresh the employee list
-                employeePopup.style.display = 'none';  // Close the popup
-
-                  // Show success message
-                  const messageBox = document.getElementById('messageBox');
-                if (currentEditEmployee) {
-                    messageBox.textContent = 'Employee edited successfully!';
-                } else {
-                    messageBox.textContent = 'Employee added successfully!';
-                }
-
-                // Show the success message
-                messageBox.style.display = 'block';
-
-                // Hide the success message after 5 seconds
-                setTimeout(function() {
-                    messageBox.style.display = 'none';
-                }, 5000);
-
-                // Reset the current edit flag
-                currentEditEmployee = false;
-            } else {
-                alert('Error: ' + response.message);  // Show error message
-            }
-        },
-        error: function(xhr, status, error) {
-            alert('Request failed: ' + error);  // Handle any errors
-        }
+        renderPagination();
     });
 }
 
+function renderPagination() {
+    // Clear existing pagination links
+    paginationContainer.innerHTML = '';
 
-  // Edit an employee
-  function editEmployee(event) {
-        const employeeId = event.target.getAttribute('data-id');
-        fetch('../controllers/EmployeeController.php?endpoint=employees', { method: 'GET' })
-        .then(response => response.json())
-        .then(employees => {
-            const employee = employees.find(emp => emp.id == employeeId);
-            openEmployeePopup(employee);
-        });
-    }
-
-    // Save the employee (add or update)
-    // function saveEmployee() {
-    //     const name = document.getElementById('name').value;
-    //     const email = document.getElementById('email').value;
-    //     const password = document.getElementById('password').value;
-    //     const position = document.getElementById('position').value;
-    //     const salary = document.getElementById('salary').value;
-   
-    //     const id = document.getElementById('employeeId').value;
-
-    //     const method = currentEditEmployee ? 'PUT' : 'POST';
-    //     const url = '../controllers/EmployeeController.php?endpoint=employees';
-    //     const data = { name, email, password, position, salary };
-
-    //     if (currentEditEmployee) {
-    //         data.id = id;
-    //     }
-
-    //     fetch(url, {
-    //         method,
-    //         headers: { 'Content-Type': 'application/json' },
-    //         body: JSON.stringify(data)
-    //     })
-    //     .then(response => response.json())
-    //     .then(response => {
-    //         if (response.status === 'success') {
-    //             renderEmployees();
-    //             employeePopup.style.display = 'none';
-    //         } else {
-    //             alert('Error: ' + response.message);
-    //         }
-    //     });
-    // }
-
-
-   // Delete an employee
-   function deleteEmployee(event) {
-        const id = event.target.getAttribute('data-id');
-        deleteConfirmPopup.style.display = 'flex';
-
-        const method = 'DELETE';
-        const url = '../controllers/EmployeeController.php?endpoint=employees';
-        const data = {id };
-
-        confirmDeleteBtn.onclick = function() {
-            fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(response => {
-                if (response.status === 'success') {
-                    renderEmployees();
-                    deleteConfirmPopup.style.display = 'none';
-                    // successMessage.style.display = 'block';
-                    // setTimeout(() => successMessage.style.display = 'none', 2000);
-
-                  // Show success message
-                   const messageBox = document.getElementById('messageBox');
-                   messageBox.textContent = 'Employee delete successfully!';
-            
-                  // Show the success message
-                     messageBox.style.display = 'block';
-                 // Hide the success message after 2 seconds
-                    setTimeout(() => messageBox.style.display = 'none', 2000);
-
-         
-
-                } else {
-                    alert('Error: ' + response.message);
-                }
-            });
+    for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement('button');
+        button.textContent = i;
+        button.classList.add('pagination-btn');
+        button.onclick = () => {
+            currentPage = i;
+            renderEmployees();
         };
-
-        cancelDeleteBtn.onclick = function() {
-            deleteConfirmPopup.style.display = 'none';
-        };
+        paginationContainer.appendChild(button);
     }
+}
 
-     
-
-    // Close the employee popup
-    closePopupBtn.addEventListener('click', function() {
-        employeePopup.style.display = 'none';
-    });
-
-    // Close the employee popup (cancel button)
-    closePopup.addEventListener('click', function() {
-        employeePopup.style.display = 'none';
-    });
-
-    // Save employee (add or update)
-    saveBtn.addEventListener('click', saveEmployee);
-
-    // Initial rendering of employees
+// Event listeners
+document.addEventListener('DOMContentLoaded', () => {
     renderEmployees();
 
-    // Open the add employee popup when the button is clicked
-    addEmployeeBtn.addEventListener('click', function() {
-        openEmployeePopup();
-    });
-</script>
+    // Re-render employees when search input changes
+    searchInput.addEventListener('input', renderEmployees);
 
+    // Re-render employees when records per page changes
+    recordsPerPage.addEventListener('change', renderEmployees);
+});
+
+</script>
 </body>
 </html>
